@@ -27,12 +27,16 @@ class MAST(object):
         ro.r["library"]("MAST")
         ro.r["library"]("BiocParallel")
         ro.r("BiocParallel::register(BiocParallel::MulticoreParam())")
-        
+
         self.X_train = np.load(self.data)
         self.c_train = np.loadtxt(self.labels)
-        
+
         # loading data
-        ro.r(str("""fmat <- npyLoad("*""")[:-1] + self.data + str("""*", "integer")""")[1:])
+        ro.r(
+            str("""fmat <- npyLoad("*""")[:-1]
+            + self.data
+            + str("""*", "integer")""")[1:]
+        )
         ro.r(str("""cmat <- read.table("*""")[:-1] + self.labels + str("""*")""")[1:])
         ro.r("cmat$V2 <- factor(cmat$V1)")
 
@@ -59,13 +63,26 @@ class MAST(object):
 
         ro.r("sca <- FromMatrix(t(data.frame(local_fmat)), data.frame(local_cmat$V3))")
         ro.r("zlmCond <- zlm(~local_cmat.V3, sca)")
-        ro.r("""summaryCond <- summary(zlmCond, doLRT='local_cmat.V31')""")
-        ro.r("summaryDt <- summaryCond$datatable")
-        ro.r("""fcHurdle <- merge(
-                summaryDt[contrast=='local_cmat.V31' & component=='H',.(primerid, `Pr(>Chisq)`)],
-                    #hurdle P values
-                summaryDt[contrast=='local_cmat.V31' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
-                by='primerid') #logFC coefficients""")
+        try:
+            ro.r("""summaryCond <- summary(zlmCond, doLRT='local_cmat.V31')""")
+            ro.r("summaryDt <- summaryCond$datatable")
+            ro.r(
+                """fcHurdle <- merge(
+                    summaryDt[contrast=='local_cmat.V31' & component=='H',.(primerid, `Pr(>Chisq)`)],
+                        #hurdle P values
+                    summaryDt[contrast=='local_cmat.V31' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
+                    by='primerid') #logFC coefficients"""
+            )
+        except rpy2.rinterface.RRuntimeError:
+            ro.r("""summaryCond <- summary(zlmCond, doLRT='local_cmat.V34')""")
+            ro.r("summaryDt <- summaryCond$datatable")
+            ro.r(
+                """fcHurdle <- merge(
+                    summaryDt[contrast=='local_cmat.V34' & component=='H',.(primerid, `Pr(>Chisq)`)],
+                        #hurdle P values
+                    summaryDt[contrast=='local_cmat.V34' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
+                    by='primerid') #logFC coefficients"""
+            )
         # data = pd.DataFrame([ro.r("fcHurdle$primerid"), ro.r("""fcHurdle$'Pr(>Chisq)'"""), ro.r("fcHurdle$coef")]).T
         # data.columns = ["gene_index", "p_value", "coeff"]
         # # data["gene_index"] = data["gene_index"].apply(lambda x: int(str(x)[1:]))
