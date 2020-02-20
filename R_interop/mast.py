@@ -73,7 +73,7 @@ class MAST(object):
                     summaryDt[contrast=='local_cmat.V31' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
                     by='primerid') #logFC coefficients"""
             )
-        except rpy2.rinterface.RRuntimeError:
+        except:
             ro.r("""summaryCond <- summary(zlmCond, doLRT='local_cmat.V34')""")
             ro.r("summaryDt <- summaryCond$datatable")
             ro.r(
