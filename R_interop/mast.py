@@ -8,7 +8,7 @@ import pandas as pd
 
 
 class MAST(object):
-    def __init__(self, A, B, data, labels, cluster):
+    def __init__(self, A, B, data, labels, cluster, local_cmat_key="V31"):
         """
         A: number of cells in the first cluster
         B: number of cells in the second cluster
@@ -21,6 +21,7 @@ class MAST(object):
         self.data = data
         self.labels = labels
         self.cluster = cluster
+        self.local_cmat_key = local_cmat_key
         warnings.filterwarnings("ignore", category=RRuntimeWarning)
         rpy2.robjects.numpy2ri.activate()
         ro.r["library"]("RcppCNPy")
@@ -63,26 +64,22 @@ class MAST(object):
 
         ro.r("sca <- FromMatrix(t(data.frame(local_fmat)), data.frame(local_cmat$V3))")
         ro.r("zlmCond <- zlm(~local_cmat.V3, sca)")
-        try:
-            ro.r("""summaryCond <- summary(zlmCond, doLRT='local_cmat.V31')""")
-            ro.r("summaryDt <- summaryCond$datatable")
-            ro.r(
-                """fcHurdle <- merge(
-                    summaryDt[contrast=='local_cmat.V31' & component=='H',.(primerid, `Pr(>Chisq)`)],
-                        #hurdle P values
-                    summaryDt[contrast=='local_cmat.V31' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
-                    by='primerid') #logFC coefficients"""
+
+        ro.r(
+            """summaryCond <- summary(zlmCond, doLRT='local_cmat.{}')""".format(
+                self.local_cmat_key
             )
-        except:
-            ro.r("""summaryCond <- summary(zlmCond, doLRT='local_cmat.V34')""")
-            ro.r("summaryDt <- summaryCond$datatable")
-            ro.r(
-                """fcHurdle <- merge(
-                    summaryDt[contrast=='local_cmat.V34' & component=='H',.(primerid, `Pr(>Chisq)`)],
-                        #hurdle P values
-                    summaryDt[contrast=='local_cmat.V34' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
-                    by='primerid') #logFC coefficients"""
+        )
+        ro.r("summaryDt <- summaryCond$datatable")
+        ro.r(
+            """fcHurdle <- merge(
+                summaryDt[contrast=='local_cmat.{}' & component=='H',.(primerid, `Pr(>Chisq)`)],
+                    #hurdle P values
+                summaryDt[contrast=='local_cmat.{}' & component=='logFC', .(primerid, coef, ci.hi, ci.lo)],
+                by='primerid') #logFC coefficients""".format(
+                self.local_cmat_key, self.local_cmat_key
             )
+        )
         # data = pd.DataFrame([ro.r("fcHurdle$primerid"), ro.r("""fcHurdle$'Pr(>Chisq)'"""), ro.r("fcHurdle$coef")]).T
         # data.columns = ["gene_index", "p_value", "coeff"]
         # # data["gene_index"] = data["gene_index"].apply(lambda x: int(str(x)[1:]))

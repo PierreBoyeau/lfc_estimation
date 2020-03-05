@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from tqdm import tqdm
 import os
@@ -30,6 +31,7 @@ def all_predictions(
     path_to_scripts=None,
     lfc_threshold: float = 0.5,
     all_nature=True,
+    mast_cmat_key="V31",
 ):
     if os.path.exists(filename):
         return load_pickle(filename)
@@ -40,8 +42,10 @@ def all_predictions(
     lfcs_deseq2 = np.zeros((n_sizes, n_picks, n_genes))
     pvals_deseq2 = np.zeros((n_sizes, n_picks, n_genes))
     pvals_true_deseq2 = np.zeros((n_sizes, n_picks, n_genes))
+    times_deseq2 = np.zeros((n_sizes, n_picks))
     for (size_ix, size) in enumerate(tqdm(sizes)):
         for exp in range(n_picks):
+            timer = time.time()
             deseq_inference = NDESeq2(
                 A=size,
                 B=size,
@@ -53,11 +57,21 @@ def all_predictions(
                 path_to_scripts=path_to_scripts,
                 lfc_threshold=lfc_threshold,
             )
-            res_df = deseq_inference.fit()
-            lfcs_deseq2[size_ix, exp, :] = res_df["lfc"].values
-            pvals_deseq2[size_ix, exp, :] = res_df["padj"].values
-            pvals_true_deseq2[size_ix, exp, :] = res_df["pval"].values
-    deseq_res = dict(lfc=lfcs_deseq2.squeeze(), pval=pvals_deseq2.squeeze(), pval_true=pvals_true_deseq2.squeeze())
+            try:
+                res_df = deseq_inference.fit()
+                timer = time.time() - timer
+                times_deseq2[size_ix, exp] = timer
+                lfcs_deseq2[size_ix, exp, :] = res_df["lfc"].values
+                pvals_deseq2[size_ix, exp, :] = res_df["padj"].values
+                pvals_true_deseq2[size_ix, exp, :] = res_df["pval"].values
+            except Exception as e:
+                print(e)
+    deseq_res = dict(
+        lfc=lfcs_deseq2.squeeze(),
+        pval=pvals_deseq2.squeeze(),
+        pval_true=pvals_true_deseq2.squeeze(),
+        time=times_deseq2,
+    )
     results["deseq2"] = deseq_res
     save_pickle(data=results, filename=filename)
 
@@ -65,9 +79,10 @@ def all_predictions(
     lfcs_edge_r = np.zeros((n_sizes, n_picks, n_genes))
     pvals_edge_r = np.zeros((n_sizes, n_picks, n_genes))
     pvals_true_edge_r = np.zeros((n_sizes, n_picks, n_genes))
-
+    times_edge_r = np.zeros((n_sizes, n_picks))
     for (size_ix, size) in enumerate(tqdm(sizes)):
         for exp in range(n_picks):
+            timer = time.time()
             deseq_inference = NEdgeRLTRT(
                 A=size,
                 B=size,
@@ -78,23 +93,34 @@ def all_predictions(
                 cluster=(label_a, label_b),
                 path_to_scripts=path_to_scripts,
             )
-            res_df = deseq_inference.fit()
-            lfcs_edge_r[size_ix, exp, :] = res_df["lfc"].values
-            pvals_edge_r[size_ix, exp, :] = res_df["padj"].values
-            pvals_true_edge_r[size_ix, exp, :] = res_df["pval"].values
+            try:
+                res_df = deseq_inference.fit()
+                timer = time.time() - timer
+                times_edge_r[size_ix, exp] = timer
+                lfcs_edge_r[size_ix, exp, :] = res_df["lfc"].values
+                pvals_edge_r[size_ix, exp, :] = res_df["padj"].values
+                pvals_true_edge_r[size_ix, exp, :] = res_df["pval"].values
+            except Exception as e:
+                print(e)
 
-    edger_res = dict(lfc=lfcs_edge_r.squeeze(), pval=pvals_edge_r.squeeze(), pval_true=pvals_true_edge_r.squeeze())
+    edger_res = dict(
+        lfc=lfcs_edge_r.squeeze(),
+        pval=pvals_edge_r.squeeze(),
+        pval_true=pvals_true_edge_r.squeeze(),
+        time=times_edge_r,
+    )
     results["edger"] = edger_res
     save_pickle(data=results, filename=filename)
-
 
     # MAST
     lfcs_mast = np.zeros((n_sizes, n_picks, n_genes))
     var_lfcs_mast = np.zeros((n_sizes, n_picks, n_genes))
     pvals_mast = np.zeros((n_sizes, n_picks, n_genes))
+    times_mast = np.zeros((n_sizes, n_picks))
     for (size_ix, size) in enumerate(tqdm(sizes)):
         for exp in range(n_picks):
             if all_nature:
+                timer = time.time()
                 mast_inference = NMASTcpm(
                     A=size,
                     B=size,
@@ -105,24 +131,40 @@ def all_predictions(
                     cluster=(label_a, label_b),
                     path_to_scripts=path_to_scripts,
                 )
-                res_df = mast_inference.fit()
-                print(res_df.info())
-                var_lfcs_mast[size_ix, exp, :] = res_df["varLogFC"].values
-                lfcs_mast[size_ix, exp, :] = res_df["logFC"].values
+                try:
+                    res_df = mast_inference.fit()
+                    timer = time.time() - timer
+                    times_mast[size_ix, exp] = timer
+                    print(res_df.info())
+                    var_lfcs_mast[size_ix, exp, :] = res_df["varLogFC"].values
+                    lfcs_mast[size_ix, exp, :] = res_df["logFC"].values
+                    pvals_mast[size_ix, exp, :] = res_df["pval"].values
+                except Exception as e:
+                    print(e)
 
             else:
+                timer = time.time()
                 mast_inference = MAST(
                     A=size,
                     B=size,
                     data=data_path,
                     labels=labels_path,
                     cluster=(label_a, label_b),
+                    local_cmat_key=mast_cmat_key,
                 )
-                res_df = mast_inference.fit(return_fc=True)
-                lfcs_mast[size_ix, exp, :] = res_df["lfc"].values
-            pvals_mast[size_ix, exp, :] = res_df["pval"].values
+                try:
+                    res_df = mast_inference.fit(return_fc=True)
+                    timer = time.time() - timer
+                    times_mast[size_ix, exp] = timer
+                    lfcs_mast[size_ix, exp, :] = res_df["lfc"].values
+                    pvals_mast[size_ix, exp, :] = res_df["pval"].values
+                except Exception as e:
+                    print(e)
     mast_res = dict(
-        lfc=lfcs_mast.squeeze(), pval=pvals_mast.squeeze(), var_lfc=var_lfcs_mast
+        lfc=lfcs_mast.squeeze(),
+        pval=pvals_mast.squeeze(),
+        var_lfc=var_lfcs_mast,
+        time=times_mast,
     )
     results["mast"] = mast_res
     save_pickle(data=results, filename=filename)
