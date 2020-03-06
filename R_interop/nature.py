@@ -116,6 +116,7 @@ class NEdgeRLTRT(DEClass):
         delta: float,
         cluster: tuple,
         path_to_scripts: str,
+        batches: str = None,
     ):
         super().__init__(
             A=A,
@@ -126,6 +127,7 @@ class NEdgeRLTRT(DEClass):
             delta=delta,
             cluster=cluster,
             path_to_scripts=path_to_scripts,
+            batches=batches,
         )
 
     def fit(self):
@@ -220,6 +222,7 @@ class NMASTcpm(DEClass):
         delta: float,
         cluster: tuple,
         path_to_scripts: str,
+        batches: str = None,
     ):
         super().__init__(
             A=A,
@@ -230,6 +233,7 @@ class NMASTcpm(DEClass):
             delta=delta,
             cluster=cluster,
             path_to_scripts=path_to_scripts,
+            batches=batches,
         )
 
     def fit(self):
