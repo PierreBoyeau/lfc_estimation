@@ -32,6 +32,7 @@ def all_predictions(
     lfc_threshold: float = 0.5,
     all_nature=True,
     mast_cmat_key="V31",
+    batches: str = None,
 ):
     if os.path.exists(filename):
         return load_pickle(filename)
@@ -56,6 +57,7 @@ def all_predictions(
                 delta=delta,
                 path_to_scripts=path_to_scripts,
                 lfc_threshold=lfc_threshold,
+                batches=batches,
             )
             try:
                 res_df = deseq_inference.fit()
@@ -92,6 +94,7 @@ def all_predictions(
                 delta=delta,
                 cluster=(label_a, label_b),
                 path_to_scripts=path_to_scripts,
+                batches=batches,
             )
             try:
                 res_df = deseq_inference.fit()
@@ -130,6 +133,7 @@ def all_predictions(
                     delta=delta,
                     cluster=(label_a, label_b),
                     path_to_scripts=path_to_scripts,
+                    batches=batches,
                 )
                 try:
                     res_df = mast_inference.fit()

@@ -17,6 +17,7 @@ class DEClass:
         delta: float,
         cluster: tuple,
         path_to_scripts: str,
+        batches: str = None,
     ):
         """
         A: number of cells in the first cluster
@@ -29,6 +30,7 @@ class DEClass:
         self.B = B
         self.data = data
         self.labels = labels
+        self.batches = batches
         self.cluster = cluster
         # loading libraries
         warnings.filterwarnings("ignore", category=RRuntimeWarning)
@@ -50,8 +52,13 @@ class DEClass:
         )
         ro.r(str("""cmat <- read.table("*""")[:-1] + self.labels + str("""*")""")[1:])
 
+        if self.batches is not None:
+            ro.r(
+                str("""batch_indices <- read.table("*""")[:-1]
+                + self.batches
+                + str("""*")""")[1:]
+            )
         # ro.r("cmat$V2 <- factor(cmat$V1)")
-
 
         # computing data mask
         set_a = np.where(self.c_train == self.cluster[0])[0]
@@ -69,7 +76,7 @@ class DEClass:
             self.lfc_gt = lfc_dist.mean(0)
             self.is_de = (np.abs(lfc_dist) >= delta).mean(0)
 
-        stochastic_set = np.hstack((subset_a, subset_b))
+        stochastic_set = np.hstack((subset_a, subset_b)) + 1
 
         # Option default
         # f = np.array([a in stochastic_set for a in np.arange(self.X_train.shape[0])])
@@ -87,8 +94,12 @@ class DEClass:
         ro.r("local_fmat <- t(fmat[f,])")
         ro.r("local_fmat <- as.data.frame(local_fmat)")
         ro.r("local_cmat <- factor(cmat[f,])")
+        ro.r("local_batch <- factor(batch_indices[f,])")
 
-        ro.r("L <- list(count=local_fmat, condt=local_cmat)")
+        if self.batches is None:
+            ro.r("L <- list(count=local_fmat, condt=local_cmat)")
+        else:
+            ro.r("L <- list(count=local_fmat, condt=local_cmat, batch=local_batch)")
 
     def fit(self):
         pass
@@ -120,11 +131,11 @@ class NEdgeRLTRT(DEClass):
     def fit(self):
         ro.r("script_path <- paste(path_to_scripts, 'apply_edgeRLRT.R', sep='/')")
         ro.r("source(script_path)")
-        ro.r("res <- run_edgeRLRT(L)")
-        res = (
-            pd.DataFrame(ro.r("res$df"))
-            .assign(lfc_gt=self.lfc_gt, is_de=self.is_de)
-        )
+        if self.batches is None:
+            ro.r("res <- run_edgeRLRT(L)")
+        else:
+            ro.r("res <- run_edgeRLRT_multibatch(L)")
+        res = pd.DataFrame(ro.r("res$df")).assign(lfc_gt=self.lfc_gt, is_de=self.is_de)
         return res
 
 
@@ -155,10 +166,7 @@ class NEdgeRLTRTRobust(DEClass):
         ro.r("script_path <- paste(path_to_scripts, 'apply_edgeRLRTrobust.R', sep='/')")
         ro.r("source(script_path)")
         ro.r("res <- run_edgeRLRTrobust(L)")
-        res = (
-            pd.DataFrame(ro.r("res$df"))
-            .assign(lfc_gt=self.lfc_gt, is_de=self.is_de)
-        )
+        res = pd.DataFrame(ro.r("res$df")).assign(lfc_gt=self.lfc_gt, is_de=self.is_de)
         return res
 
 
@@ -174,6 +182,7 @@ class NDESeq2(DEClass):
         cluster: tuple,
         path_to_scripts: str,
         lfc_threshold: float = 0.5,
+        batches: str = None,
     ):
         ro.r.assign("lfc_threshold", lfc_threshold)
 
@@ -186,16 +195,17 @@ class NDESeq2(DEClass):
             delta=delta,
             cluster=cluster,
             path_to_scripts=path_to_scripts,
+            batches=batches,
         )
 
     def fit(self):
         ro.r("script_path <- paste(path_to_scripts, 'apply_DESeq2.R', sep='/')")
         ro.r("source(script_path)")
-        ro.r("res <- run_DESeq2(L, lfcThreshold=lfc_threshold)")
-        res = (
-            pd.DataFrame(ro.r("res$df"))
-            .assign(lfc_gt=self.lfc_gt, is_de=self.is_de)
-        )
+        if self.batches is None:
+            ro.r("res <- run_DESeq2(L, lfcThreshold=lfc_threshold)")
+        else:
+            ro.r("res <- run_DESeq2_multibatch(L, lfcThreshold=lfc_threshold)")
+        res = pd.DataFrame(ro.r("res$df")).assign(lfc_gt=self.lfc_gt, is_de=self.is_de)
         return res
 
 
@@ -225,10 +235,15 @@ class NMASTcpm(DEClass):
     def fit(self):
         ro.r("script_path <- paste(path_to_scripts, 'apply_MASTcpm.R', sep='/')")
         ro.r("source(script_path)")
-        ro.r("res <- run_MASTcpm(L)")
+
+        if self.batches is None:
+            ro.r("res <- run_MASTcpm(L)")
+        else:
+            ro.r("res <- run_MASTcpm_multibatch(L)")
         # return ro.r("res")
         res = pd.DataFrame(ro.r("res$df"))
         return res
+
 
 # class NSCDE(DEClass):
 #     def __init__(
