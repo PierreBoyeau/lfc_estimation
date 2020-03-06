@@ -140,8 +140,8 @@ def all_predictions(
                     timer = time.time() - timer
                     times_mast[size_ix, exp] = timer
                     print(res_df.info())
-                    var_lfcs_mast[size_ix, exp, :] = res_df["varLogFC"].values
-                    lfcs_mast[size_ix, exp, :] = res_df["logFC"].values
+                    # var_lfcs_mast[size_ix, exp, :] = res_df["varLogFC"].values
+                    lfcs_mast[size_ix, exp, :] = res_df["lfc"].values
                     pvals_mast[size_ix, exp, :] = res_df["pval"].values
                 except Exception as e:
                     print(e)
