@@ -22,8 +22,10 @@ def all_predictions(
     n_genes,
     n_picks,
     sizes,
+    size_b,
     data_path,
     labels_path,
+    size_b=None,
     label_a=0,
     label_b=1,
     normalized_means=None,
@@ -45,11 +47,13 @@ def all_predictions(
     pvals_true_deseq2 = np.zeros((n_sizes, n_picks, n_genes))
     times_deseq2 = np.zeros((n_sizes, n_picks))
     for (size_ix, size) in enumerate(tqdm(sizes)):
+        b_size = size_b if size_b is not None else size
+        print("Size A {} and B {}".format(size, b_size))
         for exp in range(n_picks):
             timer = time.time()
             deseq_inference = NDESeq2(
                 A=size,
-                B=size,
+                B=b_size,
                 data=data_path,
                 labels=labels_path,
                 cluster=(label_a, label_b),
@@ -83,11 +87,13 @@ def all_predictions(
     pvals_true_edge_r = np.zeros((n_sizes, n_picks, n_genes))
     times_edge_r = np.zeros((n_sizes, n_picks))
     for (size_ix, size) in enumerate(tqdm(sizes)):
+        b_size = size_b if size_b is not None else size
+        print("Size A {} and B {}".format(size, b_size))
         for exp in range(n_picks):
             timer = time.time()
             deseq_inference = NEdgeRLTRT(
                 A=size,
-                B=size,
+                B=b_size,
                 data=data_path,
                 labels=labels_path,
                 normalized_means=normalized_means,
@@ -121,12 +127,14 @@ def all_predictions(
     pvals_mast = np.zeros((n_sizes, n_picks, n_genes))
     times_mast = np.zeros((n_sizes, n_picks))
     for (size_ix, size) in enumerate(tqdm(sizes)):
+        b_size = size_b if size_b is not None else size
+        print("Size A {} and B {}".format(size, b_size))
         for exp in range(n_picks):
             if all_nature:
                 timer = time.time()
                 mast_inference = NMASTcpm(
                     A=size,
-                    B=size,
+                    B=b_size,
                     data=data_path,
                     labels=labels_path,
                     normalized_means=normalized_means,
@@ -150,7 +158,7 @@ def all_predictions(
                 timer = time.time()
                 mast_inference = MAST(
                     A=size,
-                    B=size,
+                    B=b_size,
                     data=data_path,
                     labels=labels_path,
                     cluster=(label_a, label_b),
