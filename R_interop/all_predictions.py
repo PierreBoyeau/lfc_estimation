@@ -22,7 +22,6 @@ def all_predictions(
     n_genes,
     n_picks,
     sizes,
-    size_b,
     data_path,
     labels_path,
     size_b=None,
