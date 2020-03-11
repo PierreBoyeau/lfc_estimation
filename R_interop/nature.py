@@ -62,14 +62,14 @@ class DEClass:
 
         # computing data mask
         set_a = np.where(self.c_train == self.cluster[0])[0]
-        subset_a = np.random.choice(set_a, self.A, replace=False)
+        subset_a = np.random.choice(set_a, self.A, replace=False) + 1
         set_b = np.where(
             (self.c_train == self.cluster[1])
             * (
                 ~np.isin(np.arange(len(self.c_train)), subset_a)
             )  # avoid using same samples for negative controls
         )[0]
-        subset_b = np.random.choice(set_b, self.B, replace=False)
+        subset_b = np.random.choice(set_b, self.B, replace=False) + 1
 
         self.lfc_gt = None
         self.is_de = None
@@ -81,7 +81,7 @@ class DEClass:
             self.lfc_gt = lfc_dist.mean(0)
             self.is_de = (np.abs(lfc_dist) >= delta).mean(0)
 
-        stochastic_set = np.hstack((subset_a, subset_b)) + 1
+        stochastic_set = np.hstack((subset_a, subset_b))
 
         # Option default
         # f = np.array([a in stochastic_set for a in np.arange(self.X_train.shape[0])])
@@ -98,6 +98,12 @@ class DEClass:
         ro.r.assign("f", stochastic_set)
         ro.r("local_fmat <- t(fmat[f,])")
         ro.r("local_fmat <- as.data.frame(local_fmat)")
+        if self.A == self.B:
+            print("Negative control task; artificial change of labels ...")
+            ro.r.assign("a_indices", subset_a)
+            ro.r.assign("b_indices", subset_b)
+            ro.r("cmat[a_indices,] <- 1")
+            ro.r("cmat[b_indices,] <- 2")
         ro.r("local_cmat <- factor(cmat[f,])")
         ro.r("local_batch <- factor(batch_indices[f,])")
 
