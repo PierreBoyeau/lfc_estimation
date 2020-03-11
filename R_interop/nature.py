@@ -63,7 +63,12 @@ class DEClass:
         # computing data mask
         set_a = np.where(self.c_train == self.cluster[0])[0]
         subset_a = np.random.choice(set_a, self.A, replace=False)
-        set_b = np.where(self.c_train == self.cluster[1])[0]
+        set_b = np.where(
+            (self.c_train == self.cluster[1])
+            * (
+                ~np.isin(np.arange(len(self.c_train)), subset_a)
+            )  # avoid using same samples for negative controls
+        )[0]
         subset_b = np.random.choice(set_b, self.B, replace=False)
 
         self.lfc_gt = None
