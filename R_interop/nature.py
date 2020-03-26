@@ -105,11 +105,11 @@ class DEClass:
             ro.r("cmat[a_indices,] <- 1")
             ro.r("cmat[b_indices,] <- 2")
         ro.r("local_cmat <- factor(cmat[f,])")
-        ro.r("local_batch <- factor(batch_indices[f,])")
 
         if self.batches is None:
             ro.r("L <- list(count=local_fmat, condt=local_cmat)")
         else:
+            ro.r("local_batch <- factor(batch_indices[f,])")
             ro.r("L <- list(count=local_fmat, condt=local_cmat, batch=local_batch)")
 
     def fit(self):
@@ -285,4 +285,3 @@ class NMASTcpm(DEClass):
 #         ro.r("res <- run_SCDE(L)")
 #         # return ro.r("res")
 #         return pd.DataFrame(ro.r("res$df")), ro.r("res")
-
